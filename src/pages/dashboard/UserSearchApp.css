@@ -1,0 +1,246 @@
+/* UserSearchApp.css */
+.user-search-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  .search-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  .search-header h1 {
+    color: #333;
+    margin-bottom: 10px;
+  }
+  
+  .search-header p {
+    color: #666;
+  }
+  
+  .search-form-container {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+  }
+  
+  .search-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .main-search-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .form-group label {
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #555;
+  }
+  
+  .form-group input, .form-group select {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+  }
+  
+  .form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+  }
+  
+  .advanced-search-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+  }
+  
+  .advanced-search-toggle {
+    text-align: center;
+  }
+  
+  .toggle-btn {
+    background: none;
+    border: none;
+    color: #4a90e2;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px 10px;
+  }
+  
+  .toggle-btn:hover {
+    text-decoration: underline;
+  }
+  
+  .form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+  }
+  
+  .search-btn, .clear-btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .search-btn {
+    background-color: #4a90e2;
+    color: white;
+  }
+  
+  .search-btn:hover {
+    background-color: #3a7bc8;
+  }
+  
+  .search-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+  }
+  
+  .clear-btn {
+    background-color: #f1f1f1;
+    color: #666;
+  }
+  
+  .clear-btn:hover {
+    background-color: #e1e1e1;
+  }
+  
+  .error-message {
+    background-color: #fff3f3;
+    color: #e74c3c;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .results-container h2 {
+    margin-bottom: 20px;
+    color: #333;
+    border-bottom: 2px solid #f1f1f1;
+    padding-bottom: 10px;
+  }
+  
+  .user-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .user-card {
+    display: flex;
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .user-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .user-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #4a90e2;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    margin-right: 20px;
+  }
+  
+  .user-info {
+    flex: 1;
+  }
+  
+  .user-info h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+  }
+  
+  .user-info p {
+    margin: 5px 0;
+    color: #666;
+    font-size: 14px;
+  }
+  
+  .user-location {
+    font-weight: 500;
+  }
+  
+  .user-gender, .user-workplace, .user-email, .user-phone {
+    display: flex;
+    align-items: center;
+  }
+  
+  .user-workplace::before {
+    content: '🏢';
+    margin-right: 5px;
+  }
+  
+  .user-email::before {
+    content: '✉️';
+    margin-right: 5px;
+  }
+  
+  .user-phone::before {
+    content: '📱';
+    margin-right: 5px;
+  }
+  
+  .no-results {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
+  }
+  
+  @media (max-width: 768px) {
+    .main-search-fields,
+    .advanced-search-fields {
+      grid-template-columns: 1fr;
+    }
+    
+    .user-cards {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  button {
+    display: inline-block; /* ou block */
+    visibility: visible;
+    opacity: 1;
+  }
+  
+  .form-group {
+    margin-bottom: 1rem;
+  }
