@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Dashboard, Auth } from "@/layouts";
+import 'leaflet/dist/leaflet.css';
 
 function App() {
   return (

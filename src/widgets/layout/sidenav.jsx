@@ -7,6 +7,8 @@ import {
   IconButton,
   Typography,
 } from "@material-tailwind/react";
+import { CircleStackIcon } from "@heroicons/react/24/solid";
+
 import { useMaterialTailwindController, setOpenSidenav } from "@/context";
 
 export function Sidenav({ brandImg, brandName, routes }) {
@@ -27,13 +29,27 @@ export function Sidenav({ brandImg, brandName, routes }) {
       <div
         className={`relative`}
       >
-        <Link to="/" className="py-6 px-8 text-center">
+        <Link to="/dashborad" className="py-6 px-8 text-center">
           <Typography
-            variant="h6"
-            color={sidenavType === "dark" ? "white" : "blue-gray"}
-          >
-            DataPull
-          </Typography>
+  variant="h2"
+  className="flex items-center gap-2 px-8 py-4 transition duration-300 font-semibold text-xxl group"
+>
+<CircleStackIcon
+  className="h-12 w-12 text-red-500 transition-transform duration-300 group-hover:rotate-6" style={{color:'rgb(244, 84, 92)'}}
+/>
+
+  <span className="transition-all duration-300 group-hover:scale-105">
+    <span className=" font-bold group-hover:text-red-500" style={{color:'rgb(244, 84, 92)'}}>
+      Data
+    </span>
+    <span className="text-gray-700 font-semibold group-hover:text-gray-900">
+      Pull
+    </span>
+    <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700 group-hover:bg-red-200">
+      Beta
+    </span>
+  </span>
+</Typography>
         </Link>
         <IconButton
           variant="text"
@@ -66,13 +82,12 @@ export function Sidenav({ brandImg, brandName, routes }) {
                   {({ isActive }) => (
                     <Button
                       variant={isActive ? "gradient" : "text"}
-                      color={
-                        isActive
-                          ? sidenavColor
-                          : sidenavType === "dark"
-                          ? "white"
-                          : "blue-gray"
-                      }
+                      style={{
+                        background: isActive
+                          ? "linear-gradient(135deg, #f15f79 0%, #b24592 100%)"
+                          : "transparent",
+                        color: isActive ? "white" : "",
+                      }}
                       className="flex items-center gap-4 px-4 capitalize"
                       fullWidth
                     >

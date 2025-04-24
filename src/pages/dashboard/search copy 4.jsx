@@ -14,22 +14,6 @@ import {
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import './UserSearchApp.css';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Correction des icônes Leaflet dans React
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
 
 // Cache pour les données protégées
 const dataCache = new Map();
@@ -110,147 +94,6 @@ const ProtectedData = ({ dataId, type }) => {
   );
 };
 
-// Composant qui détecte les clics sur la carte
-function MapClickHandler({ onCitySelected }) {
-  const map = useMapEvents({
-    click: async (e) => {
-      const { lat, lng } = e.latlng;
-      try {
-        // Utilisation de Nominatim pour le géocodage inversé (gratuit mais avec des limites d'utilisation)
-        const response = await axios.get(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
-          {
-            headers: {
-              'User-Agent': 'UserSearchApp' // Important pour Nominatim
-            }
-          }
-        );
-        
-        const city = response.data.address.city || 
-                     response.data.address.town || 
-                     response.data.address.village || 
-                     response.data.address.county || 
-                     'Unknown';
-                     
-        const country = response.data.address.country || 'Unknown';
-        
-        // Appeler la fonction de callback avec les informations de la ville
-        onCitySelected(city, country);
-      } catch (error) {
-        console.error("Error getting location data:", error);
-      }
-    }
-  });
-
-  return null;
-}
-
-// Liste des villes principales
-const majorCities = [
-  { name: "Paris", country: "France", position: [48.8566, 2.3522] },
-  { name: "Marseille", country: "France", position: [43.2965, 5.3698] },
-  { name: "Lyon", country: "France", position: [45.7640, 4.8357] },
-  { name: "Toulouse", country: "France", position: [43.6047, 1.4442] },
-  { name: "Nice", country: "France", position: [43.7102, 7.2620] },
-  { name: "Nantes", country: "France", position: [47.2184, -1.5536] },
-  { name: "Strasbourg", country: "France", position: [48.5734, 7.7521] },
-  { name: "Montpellier", country: "France", position: [43.6110, 3.8767] },
-  { name: "Bordeaux", country: "France", position: [44.8378, -0.5792] },
-  { name: "Lille", country: "France", position: [50.6293, 3.0573] },
-  { name: "Rennes", country: "France", position: [48.1173, -1.6778] },
-  { name: "Reims", country: "France", position: [49.2583, 4.0317] },
-  { name: "Le Havre", country: "France", position: [49.4944, 0.1079] },
-  { name: "Saint-Étienne", country: "France", position: [45.4397, 4.3872] },
-  { name: "Toulon", country: "France", position: [43.1242, 5.9280] },
-  { name: "Grenoble", country: "France", position: [45.1885, 5.7245] },
-  { name: "Dijon", country: "France", position: [47.3220, 5.0415] },
-  { name: "Nîmes", country: "France", position: [43.8367, 4.3601] },
-  { name: "Aix-en-Provence", country: "France", position: [43.5297, 5.4474] },
-  { name: "Brest", country: "France", position: [48.3904, -4.4861] },
-  { name: "Limoges", country: "France", position: [45.8336, 1.2611] },
-  { name: "Clermont-Ferrand", country: "France", position: [45.7772, 3.0870] },
-  { name: "Villeurbanne", country: "France", position: [45.7719, 4.8902] },
-  { name: "Amiens", country: "France", position: [49.8941, 2.2958] },
-  { name: "Metz", country: "France", position: [49.1193, 6.1757] },
-  { name: "Besançon", country: "France", position: [47.2378, 6.0241] },
-  { name: "Perpignan", country: "France", position: [42.6887, 2.8948] },
-  { name: "Orléans", country: "France", position: [47.9029, 1.9093] },
-  { name: "Caen", country: "France", position: [49.1829, -0.3707] },
-  { name: "Mulhouse", country: "France", position: [47.7508, 7.3359] },
-  { name: "Rouen", country: "France", position: [49.4432, 1.0993] },
-  { name: "Nancy", country: "France", position: [48.6921, 6.1844] },
-  { name: "Avignon", country: "France", position: [43.9493, 4.8055] },
-  { name: "La Rochelle", country: "France", position: [46.1603, -1.1511] },
-  { name: "Poitiers", country: "France", position: [46.5802, 0.3404] },
-  { name: "Angers", country: "France", position: [47.4712, -0.5518] },
-  { name: "Dunkerque", country: "France", position: [51.0344, 2.3768] },
-  { name: "Calais", country: "France", position: [50.9513, 1.8587] },
-  { name: "Valence", country: "France", position: [44.9334, 4.8924] },
-  { name: "Chambéry", country: "France", position: [45.5646, 5.9178] },
-  { name: "Vannes", country: "France", position: [47.6582, -2.7605] },
-  { name: "Saint-Nazaire", country: "France", position: [47.2735, -2.2137] },
-  { name: "Bayonne", country: "France", position: [43.4929, -1.4748] },
-  { name: "Le Mans", country: "France", position: [48.0061, 0.1996] },
-  { name: "Troyes", country: "France", position: [48.2973, 4.0744] },
-  { name: "Lorient", country: "France", position: [47.7483, -3.3709] },
-  { name: "Brive-la-Gaillarde", country: "France", position: [45.1596, 1.5333] },
-  { name: "Évry", country: "France", position: [48.6322, 2.4407] },
-  { name: "Saint-Denis", country: "France", position: [48.9362, 2.3574] },
-  { name: "Annecy", country: "France", position: [45.8992, 6.1294] },
-  
-];
-
-// Composant de carte
-function MapSearch({ onCitySelected }) {
-  const [selectedCity, setSelectedCity] = useState(null);
-  
-  // Gestion du clic sur un marqueur prédéfini
-  const handleMarkerClick = useCallback((city, country) => {
-    setSelectedCity({ name: city, country: country });
-    onCitySelected(city, country);
-  }, [onCitySelected]);
-
-  return (
-    <div className="map-container" style={{ height: '400px', width: '100%', marginBottom: '20px' }}>
-      <MapContainer 
-        center={[20, 0]} 
-        zoom={2} 
-        scrollWheelZoom={true} 
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {/* Marqueurs pour les villes principales */}
-        {majorCities.map((city) => (
-          <Marker 
-            key={city.name} 
-            position={city.position}
-            eventHandlers={{
-              click: () => handleMarkerClick(city.name, city.country),
-            }}
-          >
-            <Popup>
-              {city.name}, {city.country}
-            </Popup>
-          </Marker>
-        ))}
-        
-        {/* Gestionnaire de clics pour le géocodage inversé */}
-        <MapClickHandler onCitySelected={onCitySelected} />
-      </MapContainer>
-      
-      {selectedCity && (
-        <div className="mt-2 px-4 py-2 bg-blue-gray-50 rounded">
-          <p>Selected city: <strong>{selectedCity.name}</strong>, {selectedCity.country}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function Search() {
   const [searchParams, setSearchParams] = useState({
     firstName: '',
@@ -273,7 +116,6 @@ export function Search() {
   const [error, setError] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
-  const [showMap, setShowMap] = useState(true);
 
   // Memoized function to check if search params are valid
   const hasValidSearchParams = useMemo(() => {
@@ -418,62 +260,6 @@ export function Search() {
     setCurrentPage(0);
   }, []);
 
-  // Fonction pour gérer la sélection de ville depuis la carte
-  const handleCitySelected = useCallback((city, country) => {
-    // Mettre à jour les paramètres de recherche
-    setSearchParams(prev => {
-      const newParams = {
-        ...prev,
-        currentCity: city,
-        currentCountry: country || prev.currentCountry,
-      };
-      
-      // Réinitialiser la page et effectuer la recherche manuellement avec les nouvelles valeurs
-      setCurrentPage(0);
-      
-      // Effectuer la recherche directement avec les nouveaux paramètres
-      setTimeout(async () => {
-        setIsLoading(true);
-        setError(null);
-  
-        const filteredParams = Object.fromEntries(
-          Object.entries(newParams).filter(([_, value]) => 
-            typeof value === 'string' && value.trim() !== ''
-          )
-        );
-  
-        try {
-          const response = await axios.post(
-            'http://localhost:8080/users/searchByA04',
-            filteredParams,
-            {
-              params: {
-                page: 0, // Commencer à la première page
-                size: resultsPerPage,
-                sortBy: '_score',
-                direction: 'desc',
-                protectSensitiveData: true,
-              },
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-  
-          setResults(response.data.page?.content || response.data.content || []);
-          setNBR(response.data.page?.totalElements || response.data.totalResults || 0);
-        } catch (err) {
-          setError("Une erreur s'est produite pendant la recherche. Veuillez réessayer.");
-          console.error("Search error:", err);
-        } finally {
-          setIsLoading(false);
-        }
-      }, 100);
-      
-      return newParams;
-    });
-  }, [resultsPerPage]);
-
   // Memoize the displayed results to prevent unnecessary re-renders
   const displayedResults = useMemo(() => {
     return results.map((user, index) => {
@@ -557,43 +343,7 @@ export function Search() {
           </Typography>
         </CardHeader>
         <CardBody className="overflow-x-scroll px-6 pt-2 pb-6">
-          {/* Intégration de la carte pour la recherche par localisation */}
-          <div className="mb-6">
-  <div className="flex justify-between items-center mb-4">
-    <Typography variant="h6">
-      Search by Location
-    </Typography>
-    <Button
-      variant="text"
-      color="blue-gray"
-      className="flex items-center gap-2"
-      onClick={() => setShowMap(!showMap)}
-    >
-      {showMap ? 'Hide map' : 'Show map'}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={2}
-        stroke="currentColor"
-        className={`h-4 w-4 transition-transform ${showMap ? "rotate-180" : ""}`}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-      </svg>
-    </Button>
-  </div>
-  
-  {showMap && (
-    <>
-      <Typography variant="small" className="text-gray-600 mb-4">
-        Click on the map to select a city or click on a predefined marker
-      </Typography>
-      <MapSearch  onCitySelected={handleCitySelected} />
-    </>
-  )}
-</div>
-          
-          <form onSubmit={handleSubmit} style={{ marginTop: '50px' }}>
+          <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="flex flex-col">
                 <Typography variant="small" className="mb-2 font-medium">

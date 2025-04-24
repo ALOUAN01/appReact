@@ -3,16 +3,71 @@ import {
   CardHeader,
   CardBody,
   Typography,
-  Avatar,
   Chip,
   Button,
   Input,
   Select,
   Option,
+  CardFooter,
+  Tooltip,
 } from "@material-tailwind/react";
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './UserSearchApp.css';
+
+// Component for protected sensitive data
+const ProtectedData = ({ dataId, type }) => {
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [data, setData] = useState(null);
+  
+  const handleToggleReveal = async () => {
+    if (isRevealed) {
+      setIsRevealed(false);
+      setData(null);
+      return;
+    }
+    
+    try {
+      // Fetch the actual data from server when revealed
+      const response = await axios.get(`http://localhost:8080/users/protectedData/${dataId}?type=${type}`);
+      setData(response.data.value);
+      setIsRevealed(true);
+      
+      // Auto-hide after 10 seconds
+      setTimeout(() => {
+        setIsRevealed(false);
+        setData(null);
+      }, 10000);
+    } catch (error) {
+      console.error("Error fetching protected data:", error);
+    }
+  };
+  
+  // Display placeholder based on data type
+  const getPlaceholder = () => {
+    switch(type) {
+      case "email":
+        return "••••@••••.•••";
+      case "phone":
+        return "••• ••• ••••";
+      case "relationship":
+        return "••••••";
+      default:
+        return "•••••••";
+    }
+  };
+  
+  return (
+    <Tooltip content={isRevealed ? "Click to hide" : "Click to reveal"}>
+      <span 
+        onClick={handleToggleReveal} 
+        className="cursor-pointer transition-all duration-300 hover:bg-blue-gray-50 px-2 py-1 rounded"
+      >
+        {isRevealed && data ? data : getPlaceholder()}
+      </span>
+    </Tooltip>
+  );
+};
 
 export function Search() {
   const [searchParams, setSearchParams] = useState({
@@ -22,90 +77,109 @@ export function Search() {
     currentCity: '',
     workplace: '',
     gender: '',
+    relationshipStatus: '',
+    phoneNumber: '',
+    hometownCity: '',
+    hometownCountry: '',
+    currentCountry: '',
   });
-
+  const [currentPage, setCurrentPage] = useState(0);
+  const [resultsPerPage, setResultsPerPage] = useState(1000);
   const [results, setResults] = useState([]);
   const [nbr, setNBR] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  
-  // Add debounce delay to avoid too many API calls
   const [typingTimeout, setTypingTimeout] = useState(null);
 
-  // Search function that will be triggered on input change with debounce
+  // Modified search function to handle sensitive data
   const performSearch = async () => {
     setIsLoading(true);
     setError(null);
-  
+
     const filteredParams = Object.fromEntries(
       Object.entries(searchParams).filter(([_, value]) => value.trim() !== '')
     );
-  
-    // Log the filtered parameters to ensure they match Postman
-    console.log("Request Body (filteredParams):", filteredParams);
-  
-    // Only perform search if at least one field has a value
+
     if (Object.keys(filteredParams).length === 0) {
       setResults([]);
+      setNBR(0);
       setIsLoading(false);
       return;
     }
-  
+
     try {
-      // Make a POST request with explicit Content-Type
       const response = await axios.post(
         'http://localhost:8080/users/searchByA04',
         filteredParams,
         {
           params: {
-            page: 0,
-            size: 1000,
+            page: currentPage,
+            size: resultsPerPage,
             sortBy: '_score',
             direction: 'desc',
+            protectSensitiveData: true, // Flag to tell backend to remove sensitive data
           },
           headers: {
-            'Content-Type': 'application/json', // Explicitly set Content-Type
+            'Content-Type': 'application/json',
           },
         }
       );
-  
-      // Log the response for debugging
-      console.log("API Response:", response.data);
-  
-      // Extract results (adjust based on actual response structure)
+
+      // The backend should now return results with sensitive data removed
+      // and include dataIds for fetching the real data when needed
       setResults(response.data.page?.content || response.data.content || []);
       setNBR(response.data.page?.totalElements || response.data.totalResults || 0);
     } catch (err) {
       setError("An error occurred during the search. Please try again.");
       console.error("Search error:", err);
-      if (err.response) {
-        console.error("Error Response Details:", err.response.data);
-      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Trigger search when currentPage changes
+  useEffect(() => {
+    const filteredParams = Object.fromEntries(
+      Object.entries(searchParams).filter(([_, value]) => value.trim() !== '')
+    );
+    if (Object.keys(filteredParams).length > 0) {
+      performSearch();
+    }
+  }, [currentPage]);
+
+  // Function to go to the next page
+  const goToNextPage = () => {
+    if ((currentPage + 1) * resultsPerPage < nbr) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  // Function to go to the previous page
+  const goToPreviousPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
     }
   };
 
   // Handle input change with debouncing
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
-    // Clear any existing timeout
+
     if (typingTimeout) {
       clearTimeout(typingTimeout);
     }
-    
+
     setSearchParams({
       ...searchParams,
-      [name]: value
+      [name]: value,
     });
-    
-    // Set a new timeout to perform search
+
     const timeout = setTimeout(() => {
+      setCurrentPage(0); // Reset to first page on new search
       performSearch();
-    }, 500); // 500ms delay after typing stops
-    
+    }, 500);
+
     setTypingTimeout(timeout);
   };
 
@@ -113,25 +187,25 @@ export function Search() {
   const handleSelectChange = (value, name) => {
     setSearchParams({
       ...searchParams,
-      [name]: value
+      [name]: value,
     });
-    
-    // Clear any existing timeout
+
     if (typingTimeout) {
       clearTimeout(typingTimeout);
     }
-    
-    // Set a new timeout to perform search
+
     const timeout = setTimeout(() => {
+      setCurrentPage(0); // Reset to first page on new search
       performSearch();
-    }, 300); // 300ms delay for dropdown selections
-    
+    }, 300);
+
     setTypingTimeout(timeout);
   };
 
-  // Manual search can still be triggered by form submission
+  // Manual search on form submission
   const handleSubmit = (e) => {
     e.preventDefault();
+    setCurrentPage(0); // Reset to first page on manual search
     performSearch();
   };
 
@@ -143,41 +217,31 @@ export function Search() {
       currentCity: '',
       workplace: '',
       gender: '',
+      relationshipStatus: '',
+      phoneNumber: '',
+      hometownCity: '',
+      hometownCountry: '',
+      currentCountry: '',
     });
     setResults([]);
-  };
-
-  // Function to get status chip based on user availability
-  const getUserStatusChip = (user) => {
-    // This is a placeholder - you can adjust the logic based on your actual data
-    const isOnline = user.isActive || Math.random() > 0.5; // Random for demo purposes
-    
-    return (
-      <Chip
-        variant="gradient"
-        color={isOnline ? "green" : "blue-gray"}
-        value={isOnline ? "online" : "offline"}
-        className="py-0.5 px-2 text-[11px] font-medium w-fit"
-      />
-    );
+    setNBR(0);
+    setCurrentPage(0);
   };
 
   return (
     <div className="mt-12 mb-8 flex flex-col gap-12">
       <Card>
-        <CardHeader variant="gradient" color="red" className="mb-8 p-6">
+        <CardHeader className="mb-8 p-6" style={{ background: "linear-gradient(135deg, #f15f79 0%, #b24592 100%)" }}>
           <Typography variant="h5" color="white">
             Search for Users
           </Typography>
         </CardHeader>
         <CardBody className="overflow-x-scroll px-6 pt-2 pb-6">
           <form onSubmit={handleSubmit}>
-            {/* Basic search fields - 2 inputs per row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {/* Row 1: First Name and Last Name */}
               <div className="flex flex-col">
                 <Typography variant="small" className="mb-2 font-medium">
-                First Name
+                  First Name
                 </Typography>
                 <Input
                   type="text"
@@ -191,7 +255,6 @@ export function Search() {
                   }}
                 />
               </div>
-              
               <div className="flex flex-col">
                 <Typography variant="small" className="mb-2 font-medium">
                   Last Name
@@ -208,8 +271,6 @@ export function Search() {
                   }}
                 />
               </div>
-
-              {/* Row 2: City and Gender */}
               <div className="flex flex-col">
                 <Typography variant="small" className="mb-2 font-medium">
                   City
@@ -226,7 +287,6 @@ export function Search() {
                   }}
                 />
               </div>
-              
               <div className="flex flex-col">
                 <Typography variant="small" className="mb-2 font-medium">
                   Gender
@@ -235,16 +295,15 @@ export function Search() {
                   name="gender"
                   value={searchParams.gender}
                   onChange={(value) => handleSelectChange(value, "gender")}
-                  placeholder="Tous"
+                  placeholder="All"
                 >
                   <Option value="">All</Option>
                   <Option value="male">Male</Option>
-                  <Option value="female">Famale</Option>
+                  <Option value="female">Female</Option>
                 </Select>
               </div>
             </div>
 
-            {/* Advanced search toggle button */}
             <div className="mb-4">
               <Button
                 variant="text"
@@ -266,49 +325,112 @@ export function Search() {
               </Button>
             </div>
 
-            {/* Advanced search fields */}
             {showAdvanced && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="flex flex-col">
-                  <Typography variant="small" className="mb-2 font-medium">
-                    Email
-                  </Typography>
-                  <Input
-                    type="email"
-                    name="email"
-                    value={searchParams.email}
-                    onChange={handleInputChange}
-                    placeholder="Email"
-                    className="!border-t-blue-gray-200 focus:!border-t-gray-900"
-                    labelProps={{
-                      className: "before:content-none after:content-none",
-                    }}
-                  />
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="flex flex-col">
+                    <Typography variant="small" className="mb-2 font-medium">
+                      Relationship Status
+                    </Typography>
+                    <Select
+                      name="relationshipStatus"
+                      value={searchParams.relationshipStatus}
+                      onChange={(value) => handleSelectChange(value, "relationshipStatus")}
+                      placeholder="All"
+                    >
+                      <Option value="">All</Option>
+                      <Option value="Married">Married</Option>
+                      <Option value="In a relationship">In a relationship</Option>
+                      <Option value="Single">Single</Option>
+                      <Option value="Engaged">Engaged</Option>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col">
+                    <Typography variant="small" className="mb-2 font-medium">
+                      Workplace
+                    </Typography>
+                    <Input
+                      type="text"
+                      name="workplace"
+                      value={searchParams.workplace}
+                      onChange={handleInputChange}
+                      placeholder="Workplace"
+                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                      labelProps={{
+                        className: "before:content-none after:content-none",
+                      }} />
+                  </div>
                 </div>
-                
-                <div className="flex flex-col">
-                  <Typography variant="small" className="mb-2 font-medium">
-                  WorkPlace
-                  </Typography>
-                  <Input
-                    type="text"
-                    name="WorkPlace"
-                    value={searchParams.workplace}
-                    onChange={handleInputChange}
-                    placeholder="workplace"
-                    className="!border-t-blue-gray-200 focus:!border-t-gray-900"
-                    labelProps={{
-                      className: "before:content-none after:content-none",
-                    }}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="flex flex-col">
+                    <Typography variant="small" className="mb-2 font-medium">
+                      Email
+                    </Typography>
+                    <Input
+                      type="email"
+                      name="email"
+                      value={searchParams.email}
+                      onChange={handleInputChange}
+                      placeholder="Email"
+                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                      labelProps={{
+                        className: "before:content-none after:content-none",
+                      }} />
+                  </div>
+                  <div className="flex flex-col">
+                    <Typography variant="small" className="mb-2 font-medium">
+                      Phone Number
+                    </Typography>
+                    <Input
+                      type="text"
+                      name="phoneNumber"
+                      value={searchParams.phoneNumber}
+                      onChange={handleInputChange}
+                      placeholder="Phone Number"
+                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                      labelProps={{
+                        className: "before:content-none after:content-none",
+                      }} />
+                  </div>
                 </div>
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="flex flex-col">
+                    <Typography variant="small" className="mb-2 font-medium">
+                      HomeTown Country
+                    </Typography>
+                    <Input
+                      type="text"
+                      name="hometownCountry"
+                      value={searchParams.hometownCountry}
+                      onChange={handleInputChange}
+                      placeholder="HomeTown Country"
+                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                      labelProps={{
+                        className: "before:content-none after:content-none",
+                      }} />
+                  </div>
+                  <div className="flex flex-col">
+                    <Typography variant="small" className="mb-2 font-medium">
+                      HomeTown City
+                    </Typography>
+                    <Input
+                      type="text"
+                      name="hometownCity"
+                      value={searchParams.hometownCity}
+                      onChange={handleInputChange}
+                      placeholder="HomeTown City"
+                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                      labelProps={{
+                        className: "before:content-none after:content-none",
+                      }} />
+                  </div>
+                </div>
+              </>
             )}
 
-            {/* Action buttons */}
             <div className="flex flex-wrap gap-4 mt-6">
               <Button type="submit" color="gray" disabled={isLoading}>
-                {isLoading ? "Searching......" : "Search"}
+                {isLoading ? "Searching..." : "Search"}
               </Button>
               <Button type="button" variant="outlined" color="red" onClick={clearSearch}>
                 Clear
@@ -320,29 +442,32 @@ export function Search() {
         </CardBody>
       </Card>
 
-      {/* Results Table Card */}
       <Card>
-        <CardHeader variant="gradient" color="red" className="mb-8 p-6">
-          <Typography variant="h5" color="white">
-          Search Results
-        
-          <div className="text-sm text-white text-right">
-      <span className="px-2 py-0.5 rounded-full bg-white text-red-500 font-bold shadow-sm ml-2">
-        {nbr} results
-      </span>
-      <span className="px-2 py-0.5 rounded-full bg-white text-red-500 font-bold shadow-sm ml-2">
-        {results.length} shown
-      </span>
-    </div>
-          </Typography>
+        <CardHeader
+          className="mb-8 p-6"
+          style={{ background: "linear-gradient(135deg, #f15f79 0%, #b24592 100%)" }}
+        >
+          <div className="flex justify-between items-center">
+            <Typography variant="h5" color="white">
+              Search Results
+            </Typography>
+            <div className="flex items-center gap-2 text-sm text-white">
+              <span className="px-2 py-0.5 rounded-full bg-white text-red-500 font-bold shadow-sm">
+                {nbr} results
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-white text-red-500 font-bold shadow-sm">
+                {results.length} shown
+              </span>
+            </div>
+          </div>
         </CardHeader>
         <CardBody className="overflow-x-scroll px-0 pt-0 pb-2">
           {results.length > 0 ? (
             <table className="w-full min-w-[640px] table-auto">
               <thead>
                 <tr>
-                  {["Users", "Location", "Phone Number","Email", "Work Place","Relationship Status", "Home Location"].map((el) => (
-                    <th 
+                  {["Users", "Location", "Phone Number", "Email", "Workplace", "Relationship Status", "Home Location"].map((el) => (
+                    <th
                       key={el}
                       className="border-b border-blue-gray-50 py-3 px-5 text-left"
                     >
@@ -368,7 +493,6 @@ export function Search() {
                     <tr key={user.userId || index}>
                       <td className={className}>
                         <div className="flex items-center gap-4">
-                        
                           <div>
                             <Typography
                               variant="small"
@@ -393,12 +517,12 @@ export function Search() {
                       </td>
                       <td className={className}>
                         <Typography className="text-xs font-normal text-blue-gray-500">
-                          {user.phoneNumber}
+                          <ProtectedData dataId={user.userId} type="phone" />
                         </Typography>
                       </td>
                       <td className={className}>
                         <Typography className="text-xs font-semibold text-blue-gray-600">
-                          {user.email}
+                          <ProtectedData dataId={user.userId} type="email" />
                         </Typography>
                       </td>
                       <td className={className}>
@@ -410,8 +534,8 @@ export function Search() {
                         </Typography>
                       </td>
                       <td className={className}>
-                      <Typography className="text-xs font-semibold text-blue-gray-600">
-                          {user.relationshipStatus || "not specified"}
+                        <Typography className="text-xs font-semibold text-blue-gray-600">
+                          <ProtectedData dataId={user.userId} type="relationship" />
                         </Typography>
                       </td>
                       <td className={className}>
@@ -430,7 +554,7 @@ export function Search() {
           ) : (
             !isLoading && (
               <div className="text-center py-4">
-                <Typography color="blue-gray ">No results found.</Typography>
+                <Typography color="blue-gray">No results found.</Typography>
               </div>
             )
           )}
@@ -440,6 +564,29 @@ export function Search() {
             </div>
           )}
         </CardBody>
+        <CardFooter className="flex items-center justify-between border-t border-blue-gray-50 p-4">
+          <div className="flex justify-between items-center w-full">
+            <Button
+              onClick={goToPreviousPage}
+              disabled={currentPage === 0}
+              color="gray"
+              size="sm"
+            >
+              Previous
+            </Button>
+            <div className="text-sm text-gray-600">
+              Page {currentPage + 1} of {Math.ceil(nbr / resultsPerPage) || 1}
+            </div>
+            <Button
+              onClick={goToNextPage}
+              disabled={(currentPage + 1) * resultsPerPage >= nbr || !nbr}
+              color="gray"
+              size="sm"
+            >
+              Next
+            </Button>
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

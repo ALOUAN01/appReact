@@ -3,6 +3,8 @@ import {
   UserCircleIcon,
   TableCellsIcon,
   InformationCircleIcon,
+  PhoneIcon,
+  CircleStackIcon,
   ServerStackIcon,
   RectangleStackIcon,
 } from "@heroicons/react/24/solid";
@@ -18,18 +20,24 @@ export const routes = [
     layout: "dashboard",
     pages: [
       {
-        icon: <HomeIcon {...icon} />,
+        icon: <PhoneIcon {...icon} />,
         name: "Phonora",
         path: "/search",
         element: <Search />,
       },
-      /*{
+      {
         icon: <HomeIcon {...icon} />,
         name: "dashboard",
         path: "/home",
         element: <Home />,
       },
       {
+        icon: <TableCellsIcon {...icon} />,
+        name: "tables",
+        path: "/tables",
+        element: <Tables />,
+      },
+      /*{
         icon: <HomeIcon {...icon} />,
         name: "Search",
         path: "/search",
