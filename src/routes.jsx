@@ -8,7 +8,7 @@ import {
   ServerStackIcon,
   RectangleStackIcon,
 } from "@heroicons/react/24/solid";
-import { Home, Profile, Tables, Notifications,Search} from "@/pages/dashboard";
+import { Home, Profile, Tables, Notifications,Search,GMail,CompanyTrace} from "@/pages/dashboard";
 import { SignIn, SignUp } from "@/pages/auth";
 
 const icon = {
@@ -26,16 +26,16 @@ export const routes = [
         element: <Search />,
       },
       {
-        icon: <HomeIcon {...icon} />,
-        name: "dashboard",
-        path: "/home",
-        element: <Home />,
+        icon: <TableCellsIcon {...icon} />,
+        name: "Ghost Mail Hunter",
+        path: "/GMail",
+        element: <GMail />,
       },
       {
-        icon: <TableCellsIcon {...icon} />,
-        name: "tables",
-        path: "/tables",
-        element: <Tables />,
+        icon: <HomeIcon {...icon} />,
+        name: "Company Trace",
+        path: "/CompanyTrace",
+        element: <CompanyTrace />,
       },
       /*{
         icon: <HomeIcon {...icon} />,
