@@ -32,7 +32,7 @@ export const routes = [
         element: <GMail />,
       },
       {
-        icon: <HomeIcon {...icon} />,
+        icon: <TableCellsIcon {...icon} />,
         name: "Company Trace",
         path: "/CompanyTrace",
         element: <CompanyTrace />,
