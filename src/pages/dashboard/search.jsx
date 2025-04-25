@@ -64,7 +64,7 @@ const ProtectedData = ({ dataId, type }) => {
     try {
       setIsLoading(true);
       // Fetch the actual data from server when revealed
-      const response = await axios.get(`http://localhost:8080/users/protectedData/${dataId}?type=${type}`);
+      const response = await axios.get(`http://51.44.136.165:8080/users/protectedData/${dataId}?type=${type}`);
       const responseData = response.data.value;
       
       // Store in cache
@@ -302,7 +302,7 @@ export function Search() {
 
     try {
       const response = await axios.post(
-        'http://localhost:8080/users/searchByA04',
+        'http://51.44.136.165:8080/users/searchByA04',
         filteredParams,
         {
           params: {
@@ -444,7 +444,7 @@ export function Search() {
   
         try {
           const response = await axios.post(
-            'http://localhost:8080/users/searchByA04',
+            'http://51.44.136.165:8080/users/searchByA04',
             filteredParams,
             {
               params: {
