@@ -45,3 +45,86 @@
   background: none;
   border: none;
 }
+
+
+
+
+
+
+
+
+
+
+/* src/pages/dashboard/UserSearchApp.css */
+
+/* Styles pour le tableau */
+.search-results-table {
+  
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.search-results-table thead {
+  background: linear-gradient(135deg, #f15f79 0%, #b24592 100%);
+  color: #fff;
+  
+}
+
+.search-results-table th {
+ 
+  text-align: left;
+  
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.search-results-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.search-results-table tbody tr:hover {
+  background-color: #f8fafc; /* Couleur de survol */
+}
+
+.search-results-table td {
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+
+
+.protected-data:hover {
+  background-color: #e5e7eb;
+}
+
+/* Styles pour la pagination */
+.pagination-button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  
+}
+
+
+.pagination-button.filled {
+  background-color: #f15f79;
+  color: #ffffff;
+  border: none;
+}
+
+.pagination-button.outlined {
+  border: 1px solid #ffffff;
+  color: #ffffff;
+}
+
+/* Style pour la carte */
+
+
+

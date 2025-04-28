@@ -110,7 +110,7 @@ const ProtectedData = ({ dataId, type }) => {
     <Tooltip content={isRevealed ? "Click to hide" : "Click to reveal"}>
       <span 
         onClick={handleToggleReveal} 
-        className={`cursor-pointer transition-all duration-300 hover:bg-blue-gray-50 px-2 py-1 rounded ${isLoading ? 'opacity-50' : ''}`}
+        className={`protected-data cursor-pointer transition-all duration-300 hover:bg-blue-gray-50 px-2 py-1 rounded ${isLoading ? 'opacity-50' : ''}`}
       >
         {isRevealed && data ? data : getPlaceholder()}
       </span>
@@ -225,7 +225,7 @@ function MapClickHandler({ onLocationSelected }) {
   return null;
 }
 
-// Composant MapSearch modifié
+// Composant MapSearch
 function MapSearch({ onLocationSelected }) {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [showDepartments, setShowDepartments] = useState(false);
@@ -386,6 +386,7 @@ function MapSearch({ onLocationSelected }) {
   return (
     <div className="map-container" style={{ height: '550px', width: '100%' }}>
       <div className="mb-2 flex flex-wrap justify-between items-center">
+        {/* Style de carte 
         <div className="flex items-center mb-2">
           <label htmlFor="mapStyle" className="mr-2">Style de carte:</label>
           <select 
@@ -398,18 +399,18 @@ function MapSearch({ onLocationSelected }) {
             <option value="satellite">Satellite</option>
           </select>
         </div>
-        
+        */}
         <div className="flex items-center mb-2">
           <Checkbox
             id="showDepartments"
             checked={showDepartments}
             onChange={() => setShowDepartments(!showDepartments)}
           />
-          <label htmlFor="showDepartments" className="mr-4">Afficher les départements</label>
+          <label htmlFor="showDepartments" className="mr-4">Show departments</label>
           
           {showDepartments && (
             <div className="flex items-center">
-              <label htmlFor="deptOpacity" className="mr-2">Opacité:</label>
+              <label htmlFor="deptOpacity" className="mr-2">opacity:</label>
               <Slider
                 id="deptOpacity"
                 value={deptOpacity}
@@ -473,8 +474,8 @@ function MapSearch({ onLocationSelected }) {
         <div className="mt-2 px-4 py-2 bg-blue-gray-50 rounded">
           <p>
             {selectedLocation.type === 'department' 
-              ? `Département sélectionné: ${selectedLocation.name} (${selectedLocation.code})`
-              : `Ville sélectionnée: ${selectedLocation.name}, ${selectedLocation.country}`}
+              ? `selected department : ${selectedLocation.name} (${selectedLocation.code})`
+              : `selected city : ${selectedLocation.name}, ${selectedLocation.country}`}
           </p>
         </div>
       )}
@@ -482,11 +483,11 @@ function MapSearch({ onLocationSelected }) {
       <div className="mt-2 flex items-center text-sm">
         <div className="flex items-center mr-4">
           <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#ff0000', marginRight: 4 }}></div>
-          <span>Villes principales</span>
+          <span> principal cities</span>
         </div>
         <div className="flex items-center">
           <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#2196F3', marginRight: 4 }}></div>
-          <span>Ville sélectionnée par clic</span>
+          <span>City selected by click</span>
         </div>
       </div>
     </div>
@@ -578,6 +579,9 @@ export function Search() {
     }
   }, [currentPage, performSearch, hasValidSearchParams]);
 
+  // Calculate total pages
+  const totalPages = useMemo(() => Math.ceil(nbr / resultsPerPage) || 1, [nbr, resultsPerPage]);
+
   // Function to go to the next page
   const goToNextPage = useCallback(() => {
     if ((currentPage + 1) * resultsPerPage < nbr) {
@@ -591,6 +595,13 @@ export function Search() {
       setCurrentPage(currentPage - 1);
     }
   }, [currentPage]);
+
+  // Function to go to a specific page
+  const goToPage = useCallback((page) => {
+    if (page >= 0 && page < totalPages) {
+      setCurrentPage(page);
+    }
+  }, [totalPages]);
 
   // Handle input change with improved debouncing
   const handleInputChange = useCallback((e) => {
@@ -719,15 +730,9 @@ export function Search() {
   // Memoize the displayed results to prevent unnecessary re-renders
   const displayedResults = useMemo(() => {
     return results.map((user, index) => {
-      const className = `py-3 px-5 ${
-        index === results.length - 1
-          ? ""
-          : "border-b border-blue-gray-50"
-      }`;
-
       return (
         <tr key={user.idS || index}>
-          <td className={className}>
+          <td className="py-3 px-5">
             <div className="flex items-center gap-4">
               <div>
                 <Typography
@@ -743,7 +748,7 @@ export function Search() {
               </div>
             </div>
           </td>
-          <td className={className}>
+          <td className="py-3 px-5">
             <Typography className="text-xs font-semibold text-blue-gray-600">
               {user.currentCity}
             </Typography>
@@ -751,22 +756,23 @@ export function Search() {
               {user.currentCountry}
             </Typography>
           </td>
-          <td className={className}>
+          <td className="py-3 px-5">
             <Typography className="text-xs font-semibold text-blue-gray-600">
-              {user.currentDepartment || "not specified"}
+              {user.currentDepartment}
             </Typography>
+            
           </td>
-          <td className={className}>
+          <td className="py-3 px-5">
             <Typography className="text-xs font-normal text-blue-gray-500">
               <ProtectedData dataId={user.idS} type="phone" />
             </Typography>
           </td>
-          <td className={className}>
+          <td className="py-3 px-5">
             <Typography className="text-xs font-semibold text-blue-gray-600">
               <ProtectedData dataId={user.idS} type="email" />
             </Typography>
           </td>
-          <td className={className}>
+          <td className="py-3 px-5">
             <Typography className="text-xs font-semibold text-blue-gray-600">
               {user.workplace || "not specified"}
             </Typography>
@@ -774,12 +780,12 @@ export function Search() {
               {user.jobTitle || ""}
             </Typography>
           </td>
-          <td className={className}>
+          <td className="py-3 px-5">
             <Typography className="text-xs font-semibold text-blue-gray-600">
               <ProtectedData dataId={user.idS} type="relationship" />
             </Typography>
           </td>
-          <td className={className}>
+          <td className="py-3 px-5">
             <Typography className="text-xs font-semibold text-blue-gray-600">
               {user.hometownCity}
             </Typography>
@@ -792,8 +798,26 @@ export function Search() {
     });
   }, [results]);
 
-  // Calculate total pages
-  const totalPages = useMemo(() => Math.ceil(nbr / resultsPerPage) || 1, [nbr, resultsPerPage]);
+  // Generate page numbers to display (limited to 5 pages around current page)
+  const getPageNumbers = useMemo(() => {
+    const maxPagesToShow = 5;
+    const pages = [];
+    let startPage = Math.max(0, currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages - 1, startPage + maxPagesToShow - 1);
+
+    // Adjust startPage if endPage is at the maximum
+    if (endPage - startPage + 1 < maxPagesToShow) {
+      startPage = Math.max(0, endPage - maxPagesToShow + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return pages;
+  }, [currentPage, totalPages]);
+
+  const gradientStyle = { background: "linear-gradient(135deg, #b24592 0%, #f15f79 100%)" };
 
   return (
     <div className="mt-12 mb-8 flex flex-col gap-12">
@@ -1042,7 +1066,7 @@ export function Search() {
                     }}
                   />
                 </div>
-                <div className="flex flex-col mt-4">
+                <div className="flex flex-col ">
                   <Typography variant="small" className="mb-2 font-medium">
                     Results per page
                   </Typography>
@@ -1064,7 +1088,9 @@ export function Search() {
             )}
 
             <div className="flex flex-wrap gap-4 mt-6">
-              <Button type="submit" color="gray" disabled={isLoading}>
+              <Button type="submit" color="gray" disabled={isLoading}
+              style={gradientStyle}
+              >
                 {isLoading ? "Searching..." : "Search"}
               </Button>
               <Button type="button" variant="outlined" color="red" onClick={clearSearch}>
@@ -1098,17 +1124,17 @@ export function Search() {
         </CardHeader>
         <CardBody className="overflow-x-scroll px-0 pt-0 pb-2">
           {results.length > 0 ? (
-            <table className="w-full min-w-[640px] table-auto">
+            <table className="search-results-table w-full min-w-[640px] table-auto">
               <thead>
                 <tr>
-                  {["Users", "Location","Department","Phone Number", "Email", "Workplace", "Relationship Status", "Home Location"].map((el) => (
+                  {["Users", "Location","Department", "Phone Number", "Email", "Workplace", "Relationship Status", "Home Location"].map((el) => (
                     <th
                       key={el}
-                      className="border-b border-blue-gray-50 py-3 px-5 text-left"
+                      className="py-3 px-5 text-left"
                     >
                       <Typography
                         variant="small"
-                        className="text-[11px] font-bold uppercase text-blue-gray-400"
+                        className="text-[11px] font-bold uppercase text-white"
                       >
                         {el}
                       </Typography>
@@ -1128,33 +1154,51 @@ export function Search() {
             )
           )}
           {isLoading && (
-            <div className="text-center py-4">
+            <div className="text-center py-4 ">
               <Typography color="blue-gray">Loading the results...</Typography>
             </div>
           )}
         </CardBody>
         <CardFooter className="flex items-center justify-between border-t border-blue-gray-50 p-4">
-          <div className="flex justify-between items-center w-full">
+          <div className="flex items-center gap-2">
             <Button
               onClick={goToPreviousPage}
               disabled={currentPage === 0 || isLoading}
               color="gray"
               size="sm"
+              style={gradientStyle}
             >
               Previous
             </Button>
-            <div className="text-sm text-gray-600">
-              Page {currentPage + 1} of {totalPages}
+            <div className="flex items-center gap-1">
+              {getPageNumbers.map((page) => (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "filled" : "outlined"}
+                  color={currentPage === page ? "red" : "gray"}
+                  size="sm"
+                  className="pagination-button"
+                  onClick={() => goToPage(page)}
+                  disabled={isLoading}
+                  
+                >
+                  {page + 1}
+                </Button>
+              ))}
             </div>
             <Button
               onClick={goToNextPage}
               disabled={(currentPage + 1) * resultsPerPage >= nbr || !nbr || isLoading}
               color="gray"
               size="sm"
+              style={gradientStyle}
             >
               Next
             </Button>
           </div>
+          <Typography variant="small" color="blue-gray" className=" font-medium">
+            Page {currentPage + 1} of {totalPages}
+          </Typography>
         </CardFooter>
       </Card>
     </div>
