@@ -41,7 +41,7 @@ export function CompanyTrace() {
     }
 
     try {
-      const response = await axios.get(`http://localhost:8081/api/verify/${encodeURIComponent(domain)}`);
+      const response = await axios.get(`http://51.44.136.165:8081/api/verify/${encodeURIComponent(domain)}`);
       console.log("Domaine vérifié:", domain);
       console.log("Réponse de l'API:", response.data);
       // Extraire uniquement les emails valides

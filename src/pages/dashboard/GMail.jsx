@@ -46,7 +46,7 @@ export function GMail() {
     }
 
     try {
-      const response = await axios.post("http://localhost:8081/api/ghostmail", formData);
+      const response = await axios.post("http://51.44.136.165:8081/api/ghostmail", formData);
       console.log("dataSended:", formData);
       // Récupérer uniquement les emails valides
       const emails = response.data.validEmails || [];
