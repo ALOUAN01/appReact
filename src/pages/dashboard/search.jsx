@@ -3,13 +3,14 @@ import {
   CardHeader,
   CardBody,
   Typography,
-  Chip,
   Button,
   Input,
   Select,
   Option,
   CardFooter,
   Tooltip,
+  Checkbox,
+  Slider,
 } from "@material-tailwind/react";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
@@ -17,19 +18,26 @@ import './UserSearchApp.css';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { GeoJSON } from 'react-leaflet';
 
-// Correction des icônes Leaflet dans React
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-  iconUrl: icon,
-  shadowUrl: iconShadow,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41]
+// 1. Créer des icônes personnalisées (points rouges et bleus)
+const redIcon = L.divIcon({
+  className: 'custom-div-icon',
+  html: `<div style="background-color: #ff0000; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -8]
 });
 
-L.Marker.prototype.options.icon = DefaultIcon;
+const blueIcon = L.divIcon({
+  className: 'custom-div-icon',
+  html: `<div style="background-color: #2196F3; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -8]
+});
+
+L.Marker.prototype.options.icon = blueIcon;
 
 // Cache pour les données protégées
 const dataCache = new Map();
@@ -64,7 +72,7 @@ const ProtectedData = ({ dataId, type }) => {
     try {
       setIsLoading(true);
       // Fetch the actual data from server when revealed
-      const response = await axios.get(`http://51.44.136.165:8080/users/protectedData/${dataId}?type=${type}`);
+      const response = await axios.get(`http://localhost:8080/users/protectedData/${dataId}?type=${type}`);
       const responseData = response.data.value;
       
       // Store in cache
@@ -109,41 +117,6 @@ const ProtectedData = ({ dataId, type }) => {
     </Tooltip>
   );
 };
-
-// Composant qui détecte les clics sur la carte
-function MapClickHandler({ onCitySelected }) {
-  const map = useMapEvents({
-    click: async (e) => {
-      const { lat, lng } = e.latlng;
-      try {
-        // Utilisation de Nominatim pour le géocodage inversé (gratuit mais avec des limites d'utilisation)
-        const response = await axios.get(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
-          {
-            headers: {
-              'User-Agent': 'UserSearchApp' // Important pour Nominatim
-            }
-          }
-        );
-        
-        const city = response.data.address.city || 
-                     response.data.address.town || 
-                     response.data.address.village || 
-                     response.data.address.county || 
-                     'Unknown';
-                     
-        const country = response.data.address.country || 'Unknown';
-        
-        // Appeler la fonction de callback avec les informations de la ville
-        onCitySelected(city, country);
-      } catch (error) {
-        console.error("Error getting location data:", error);
-      }
-    }
-  });
-
-  return null;
-}
 
 // Liste des villes principales
 const majorCities = [
@@ -197,37 +170,292 @@ const majorCities = [
   { name: "Évry", country: "France", position: [48.6322, 2.4407] },
   { name: "Saint-Denis", country: "France", position: [48.9362, 2.3574] },
   { name: "Annecy", country: "France", position: [45.8992, 6.1294] },
-  
 ];
 
-// Composant de carte
-function MapSearch({ onCitySelected }) {
-  const [selectedCity, setSelectedCity] = useState(null);
+// Composant MapClickHandler
+function MapClickHandler({ onLocationSelected }) {
+  const [clickMarker, setClickMarker] = useState(null);
+  const map = useMapEvents({
+    click: async (e) => {
+      const { lat, lng } = e.latlng;
+      
+      // Supprimer l'ancien marqueur s'il existe
+      if (clickMarker) {
+        map.removeLayer(clickMarker);
+      }
+      
+      // Ajouter un nouveau marqueur à l'emplacement du clic
+      const newMarker = L.marker([lat, lng], { icon: blueIcon }).addTo(map);
+      setClickMarker(newMarker);
+      
+      try {
+        // Géocodage inversé avec Nominatim
+        const response = await axios.get(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
+          {
+            headers: {
+              'User-Agent': 'UserSearchApp'
+            }
+          }
+        );
+        
+        const city = response.data.address.city || 
+                     response.data.address.town || 
+                     response.data.address.village || 
+                     response.data.address.county || 
+                     'Unknown';
+                     
+        const country = response.data.address.country || 'Unknown';
+        
+        // Ajouter une popup au marqueur
+        newMarker.bindPopup(`${city}, ${country}`).openPopup();
+        
+        // Appeler la fonction de callback avec les informations de la ville
+        onLocationSelected({
+          type: 'city',
+          name: city,
+          country: country,
+        });
+      } catch (error) {
+        console.error("Error getting location data:", error);
+      }
+    }
+  });
+
+  return null;
+}
+
+// Composant MapSearch modifié
+function MapSearch({ onLocationSelected }) {
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [showDepartments, setShowDepartments] = useState(false);
+  const [departmentsData, setDepartmentsData] = useState(null);
+  const [mapStyle, setMapStyle] = useState('standard');
+  
+  // Chargement des données GeoJSON des départements français
+  useEffect(() => {
+    if (showDepartments && !departmentsData) {
+      fetch('https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson')
+        .then(response => response.json())
+        .then(data => {
+          setDepartmentsData(data);
+        })
+        .catch(error => {
+          console.error("Erreur lors du chargement des départements:", error);
+        });
+    }
+  }, [showDepartments, departmentsData]);
+  
+  // Palette de couleurs pour les départements
+  const colorPalette = [
+    '#FF5733', '#33FF57', '#3357FF', '#F033FF', '#FF33A8',
+    '#33FFF3', '#F3FF33', '#FF8133', '#8133FF', '#33FF81',
+    '#FF3333', '#33FFFF', '#FFFF33', '#FF33FF', '#33FF33',
+    '#5733FF', '#FF5733', '#33FF57', '#3357FF', '#F033FF',
+    '#FF33A8', '#33FFF3', '#F3FF33', '#FF8133', '#8133FF',
+    '#33FF81', '#FF3333', '#33FFFF', '#FFFF33', '#FF33FF',
+    '#33FF33', '#5733FF', '#FF5733', '#33FF57', '#3357FF',
+    '#F033FF', '#FF33A8', '#33FFF3', '#F3FF33', '#FF8133',
+    '#8133FF', '#33FF81', '#FF3333', '#33FFFF', '#FFFF33',
+    '#FF33FF', '#33FF33', '#5733FF', '#FF5733', '#33FF57',
+    '#3357FF', '#F033FF', '#FF33A8', '#33FFF3', '#F3FF33',
+    '#FF8133', '#8133FF', '#33FF81', '#FF3333', '#33FFFF',
+    '#FFFF33', '#FF33FF', '#33FF33', '#5733FF', '#FF5733',
+    '#33FF57', '#3357FF', '#F033FF', '#FF33A8', '#33FFF3',
+    '#F3FF33', '#FF8133', '#8133FF', '#33FF81', '#FF3333',
+    '#33FFFF', '#FFFF33', '#FF33FF', '#33FF33', '#5733FF',
+    '#FF5733', '#33FF57', '#3357FF', '#F033FF', '#FF33A8',
+    '#33FFF3', '#F3FF33', '#FF8133', '#8133FF', '#33FF81',
+    '#FF3333', '#33FFFF', '#FFFF33', '#FF33FF', '#33FF33'
+  ];
+
+  // Style pour chaque département avec couleur unique
+  const getDepartmentStyle = (feature) => {
+    const deptCode = feature.properties.code;
+    const colorIndex = parseInt(deptCode, 10) % colorPalette.length;
+    
+    return {
+      weight: 1.5,
+      opacity: 0.8,
+      color: '#333',
+      fillOpacity: 0.3,
+      fillColor: colorPalette[colorIndex]
+    };
+  };
+
+  // Fonction appelée pour chaque feature (département)
+  const onEachDepartment = (feature, layer) => {
+    if (feature.properties) {
+      const deptName = feature.properties.nom;
+      const deptCode = feature.properties.code;
+      
+      layer.bindPopup(`
+        <div style="text-align: center;">
+          <strong>${deptName}</strong><br>
+          Département ${deptCode}
+        </div>
+      `);
+      
+      layer.bindTooltip(`${deptName} (${deptCode})`, {
+        permanent: false,
+        direction: 'center',
+        className: 'department-label'
+      });
+      
+      layer.on({
+        mouseover: (e) => {
+          const layer = e.target;
+          layer.setStyle({
+            weight: 3,
+            fillOpacity: 0.5
+          });
+          layer.bringToFront();
+        },
+        mouseout: (e) => {
+          const layer = e.target;
+          layer.setStyle({
+            weight: 1.5,
+            fillOpacity: 0.3
+          });
+        },
+        click: (e) => {
+          setSelectedLocation({
+            type: 'department',
+            name: deptName,
+            code: deptCode,
+          });
+          onLocationSelected({
+            type: 'department',
+            name: deptName,
+            code: deptCode,
+          });
+        }
+      });
+    }
+  };
   
   // Gestion du clic sur un marqueur prédéfini
   const handleMarkerClick = useCallback((city, country) => {
-    setSelectedCity({ name: city, country: country });
-    onCitySelected(city, country);
-  }, [onCitySelected]);
+    setSelectedLocation({
+      type: 'city',
+      name: city,
+      country: country,
+    });
+    onLocationSelected({
+      type: 'city',
+      name: city,
+      country: country,
+    });
+  }, [onLocationSelected]);
+
+  // Gestion du changement de style de carte
+  const handleMapStyleChange = (e) => {
+    setMapStyle(e.target.value);
+  };
+
+  // URL des différentes tuiles selon le style choisi
+  const getTileUrl = () => {
+    switch(mapStyle) {
+      case 'topo':
+        return 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+      case 'satellite':
+        return 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      default:
+        return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    }
+  };
+
+  // Attribution selon le style
+  const getTileAttribution = () => {
+    switch(mapStyle) {
+      case 'topo':
+        return '© <a href="https://opentopomap.org">OpenTopoMap</a>';
+      case 'satellite':
+        return '© <a href="https://www.arcgis.com">Esri</a>';
+      default:
+        return '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+    }
+  };
+
+  // Contrôle de l'opacité des départements
+  const [deptOpacity, setDeptOpacity] = useState(0.3);
+  const handleOpacityChange = (e) => {
+    setDeptOpacity(parseFloat(e.target.value));
+  };
 
   return (
-    <div className="map-container" style={{ height: '400px', width: '100%', marginBottom: '20px' }}>
+    <div className="map-container" style={{ height: '550px', width: '100%' }}>
+      <div className="mb-2 flex flex-wrap justify-between items-center">
+        <div className="flex items-center mb-2">
+          <label htmlFor="mapStyle" className="mr-2">Style de carte:</label>
+          <select 
+            id="mapStyle" 
+            value={mapStyle} 
+            onChange={handleMapStyleChange}
+          >
+            <option value="standard">Standard</option>
+            <option value="topo">Topographique</option>
+            <option value="satellite">Satellite</option>
+          </select>
+        </div>
+        
+        <div className="flex items-center mb-2">
+          <Checkbox
+            id="showDepartments"
+            checked={showDepartments}
+            onChange={() => setShowDepartments(!showDepartments)}
+          />
+          <label htmlFor="showDepartments" className="mr-4">Afficher les départements</label>
+          
+          {showDepartments && (
+            <div className="flex items-center">
+              <label htmlFor="deptOpacity" className="mr-2">Opacité:</label>
+              <Slider
+                id="deptOpacity"
+                value={deptOpacity}
+                onChange={handleOpacityChange}
+                min={0}
+                max={1}
+                step={0.1}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      
       <MapContainer 
-        center={[20, 0]} 
-        zoom={2} 
+        center={[46.71109, 1.7191036]}
+        zoom={5}
         scrollWheelZoom={true} 
         style={{ height: '100%', width: '100%' }}
+        minZoom={5}
+        maxBounds={[[40.5, -5.5], [52, 9.5]]}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={getTileAttribution()}
+          url={getTileUrl()}
         />
         
-        {/* Marqueurs pour les villes principales */}
+        {showDepartments && departmentsData && (
+          <GeoJSON 
+            key={`departments-${deptOpacity}`}
+            data={departmentsData} 
+            style={(feature) => {
+              const baseStyle = getDepartmentStyle(feature);
+              return {
+                ...baseStyle,
+                fillOpacity: deptOpacity
+              };
+            }}
+            onEachFeature={onEachDepartment}
+          />
+        )}
+        
         {majorCities.map((city) => (
           <Marker 
             key={city.name} 
             position={city.position}
+            icon={redIcon}
             eventHandlers={{
               click: () => handleMarkerClick(city.name, city.country),
             }}
@@ -238,15 +466,29 @@ function MapSearch({ onCitySelected }) {
           </Marker>
         ))}
         
-        {/* Gestionnaire de clics pour le géocodage inversé */}
-        <MapClickHandler onCitySelected={onCitySelected} />
+        <MapClickHandler onLocationSelected={onLocationSelected} />
       </MapContainer>
       
-      {selectedCity && (
+      {selectedLocation && (
         <div className="mt-2 px-4 py-2 bg-blue-gray-50 rounded">
-          <p>Selected city: <strong>{selectedCity.name}</strong>, {selectedCity.country}</p>
+          <p>
+            {selectedLocation.type === 'department' 
+              ? `Département sélectionné: ${selectedLocation.name} (${selectedLocation.code})`
+              : `Ville sélectionnée: ${selectedLocation.name}, ${selectedLocation.country}`}
+          </p>
         </div>
       )}
+      
+      <div className="mt-2 flex items-center text-sm">
+        <div className="flex items-center mr-4">
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#ff0000', marginRight: 4 }}></div>
+          <span>Villes principales</span>
+        </div>
+        <div className="flex items-center">
+          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#2196F3', marginRight: 4 }}></div>
+          <span>Ville sélectionnée par clic</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -264,9 +506,10 @@ export function Search() {
     hometownCity: '',
     hometownCountry: '',
     currentCountry: '',
+    currentDepartment: '',
   });
   const [currentPage, setCurrentPage] = useState(0);
-  const [resultsPerPage, setResultsPerPage] = useState(20); // Reduced from 1000 to 20
+  const [resultsPerPage, setResultsPerPage] = useState(20);
   const [results, setResults] = useState([]);
   const [nbr, setNBR] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -302,7 +545,7 @@ export function Search() {
 
     try {
       const response = await axios.post(
-        'http://51.44.136.165:8080/users/searchByA04',
+        'http://localhost:8080/users/searchByA04',
         filteredParams,
         {
           params: {
@@ -367,7 +610,7 @@ export function Search() {
       const timeout = setTimeout(() => {
         setCurrentPage(0); // Reset to first page on new search
         performSearch();
-      }, 800); // Increased debounce timeout
+      }, 800);
 
       setTypingTimeout(timeout);
     }
@@ -412,26 +655,25 @@ export function Search() {
       hometownCity: '',
       hometownCountry: '',
       currentCountry: '',
+      currentDepartment: '',
     });
     setResults([]);
     setNBR(0);
     setCurrentPage(0);
   }, []);
 
-  // Fonction pour gérer la sélection de ville depuis la carte
-  const handleCitySelected = useCallback((city, country) => {
-    // Mettre à jour les paramètres de recherche
+  // Fonction pour gérer la sélection de ville ou de département depuis la carte
+  const handleLocationSelected = useCallback((location) => {
     setSearchParams(prev => {
       const newParams = {
         ...prev,
-        currentCity: city,
-        currentCountry: country || prev.currentCountry,
+        currentCity: location.type === 'city' ? location.name : '',
+        currentCountry: location.type === 'city' ? location.country : prev.currentCountry,
+        currentDepartment: location.type === 'department' ? location.name : '',
       };
       
-      // Réinitialiser la page et effectuer la recherche manuellement avec les nouvelles valeurs
       setCurrentPage(0);
       
-      // Effectuer la recherche directement avec les nouveaux paramètres
       setTimeout(async () => {
         setIsLoading(true);
         setError(null);
@@ -444,11 +686,11 @@ export function Search() {
   
         try {
           const response = await axios.post(
-            'http://51.44.136.165:8080/users/searchByA04',
+            'http://localhost:8080/users/searchByA04',
             filteredParams,
             {
               params: {
-                page: 0, // Commencer à la première page
+                page: 0,
                 size: resultsPerPage,
                 sortBy: '_score',
                 direction: 'desc',
@@ -484,7 +726,7 @@ export function Search() {
       }`;
 
       return (
-        <tr key={user.userId || index}>
+        <tr key={user.idS || index}>
           <td className={className}>
             <div className="flex items-center gap-4">
               <div>
@@ -493,7 +735,7 @@ export function Search() {
                   color="blue-gray"
                   className="font-semibold"
                 >
-                  {user.firstName} {user.lastName}
+                  {user.firstName} {user.lastName} 
                 </Typography>
                 <Typography className="text-xs font-normal text-blue-gray-500">
                   {user.gender === 'male' ? 'male' : user.gender === 'female' ? 'female' : user.gender}
@@ -510,13 +752,18 @@ export function Search() {
             </Typography>
           </td>
           <td className={className}>
+            <Typography className="text-xs font-semibold text-blue-gray-600">
+              {user.currentDepartment || "not specified"}
+            </Typography>
+          </td>
+          <td className={className}>
             <Typography className="text-xs font-normal text-blue-gray-500">
-              <ProtectedData dataId={user.userId} type="phone" />
+              <ProtectedData dataId={user.idS} type="phone" />
             </Typography>
           </td>
           <td className={className}>
             <Typography className="text-xs font-semibold text-blue-gray-600">
-              <ProtectedData dataId={user.userId} type="email" />
+              <ProtectedData dataId={user.idS} type="email" />
             </Typography>
           </td>
           <td className={className}>
@@ -529,7 +776,7 @@ export function Search() {
           </td>
           <td className={className}>
             <Typography className="text-xs font-semibold text-blue-gray-600">
-              <ProtectedData dataId={user.userId} type="relationship" />
+              <ProtectedData dataId={user.idS} type="relationship" />
             </Typography>
           </td>
           <td className={className}>
@@ -557,43 +804,42 @@ export function Search() {
           </Typography>
         </CardHeader>
         <CardBody className="overflow-x-scroll px-6 pt-2 pb-6">
-          {/* Intégration de la carte pour la recherche par localisation */}
           <div className="mb-6">
-  <div className="flex justify-between items-center mb-4">
-    <Typography variant="h6">
-      Search by Location
-    </Typography>
-    <Button
-      variant="text"
-      color="blue-gray"
-      className="flex items-center gap-2"
-      onClick={() => setShowMap(!showMap)}
-    >
-      {showMap ? 'Hide map' : 'Show map'}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={2}
-        stroke="currentColor"
-        className={`h-4 w-4 transition-transform ${showMap ? "rotate-180" : ""}`}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-      </svg>
-    </Button>
-  </div>
-  
-  {showMap && (
-    <>
-      <Typography variant="small" className="text-gray-600 mb-4">
-        Click on the map to select a city or click on a predefined marker
-      </Typography>
-      <MapSearch  onCitySelected={handleCitySelected} />
-    </>
-  )}
-</div>
+            <div className="flex justify-between items-center mb-4">
+              <Typography variant="h6">
+                Search by Location
+              </Typography>
+              <Button
+                variant="text"
+                color="blue-gray"
+                className="flex items-center gap-2"
+                onClick={() => setShowMap(!showMap)}
+              >
+                {showMap ? 'Hide map' : 'Show map'}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className={`h-4 w-4 transition-transform ${showMap ? "rotate-180" : ""}`}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </Button>
+            </div>
+            
+            {showMap && (
+              <div style={{ marginBottom: '150px' }}>
+                <Typography variant="small" className="text-gray-600 mb-4">
+                  Click on the map to select a city, a predefined marker, or a department
+                </Typography>
+                <MapSearch onLocationSelected={handleLocationSelected} />
+              </div>
+            )}
+          </div>
           
-          <form onSubmit={handleSubmit} style={{ marginTop: '50px' }}>
+          <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="flex flex-col">
                 <Typography variant="small" className="mb-2 font-medium">
@@ -682,106 +928,120 @@ export function Search() {
             </div>
 
             {showAdvanced && (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div className="flex flex-col">
-                    <Typography variant="small" className="mb-2 font-medium">
-                      Relationship Status
-                    </Typography>
-                    <Select
-                      name="relationshipStatus"
-                      value={searchParams.relationshipStatus}
-                      onChange={(value) => handleSelectChange(value, "relationshipStatus")}
-                      placeholder="All"
-                    >
-                      <Option value="">All</Option>
-                      <Option value="Married">Married</Option>
-                      <Option value="In a relationship">In a relationship</Option>
-                      <Option value="Single">Single</Option>
-                      <Option value="Engaged">Engaged</Option>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col">
-                    <Typography variant="small" className="mb-2 font-medium">
-                      Workplace
-                    </Typography>
-                    <Input
-                      type="text"
-                      name="workplace"
-                      value={searchParams.workplace}
-                      onChange={handleInputChange}
-                      placeholder="Workplace"
-                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
-                      labelProps={{
-                        className: "before:content-none after:content-none",
-                      }} />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="flex flex-col">
+                  <Typography variant="small" className="mb-2 font-medium">
+                    Department
+                  </Typography>
+                  <Input
+                    type="text"
+                    name="currentDepartment"
+                    value={searchParams.currentDepartment}
+                    onChange={handleInputChange}
+                    placeholder="Department"
+                    className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                    labelProps={{
+                      className: "before:content-none after:content-none",
+                    }}
+                  />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div className="flex flex-col">
-                    <Typography variant="small" className="mb-2 font-medium">
-                      Email
-                    </Typography>
-                    <Input
-                      type="email"
-                      name="email"
-                      value={searchParams.email}
-                      onChange={handleInputChange}
-                      placeholder="Email"
-                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
-                      labelProps={{
-                        className: "before:content-none after:content-none",
-                      }} />
-                  </div>
-                  <div className="flex flex-col">
-                    <Typography variant="small" className="mb-2 font-medium">
-                      Phone Number
-                    </Typography>
-                    <Input
-                      type="text"
-                      name="phoneNumber"
-                      value={searchParams.phoneNumber}
-                      onChange={handleInputChange}
-                      placeholder="Phone Number"
-                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
-                      labelProps={{
-                        className: "before:content-none after:content-none",
-                      }} />
-                  </div>
+                <div className="flex flex-col">
+                  <Typography variant="small" className="mb-2 font-medium">
+                    Relationship Status
+                  </Typography>
+                  <Select
+                    name="relationshipStatus"
+                    value={searchParams.relationshipStatus}
+                    onChange={(value) => handleSelectChange(value, "relationshipStatus")}
+                    placeholder="All"
+                  >
+                    <Option value="">All</Option>
+                    <Option value="Married">Married</Option>
+                    <Option value="In a relationship">In a relationship</Option>
+                    <Option value="Single">Single</Option>
+                    <Option value="Engaged">Engaged</Option>
+                  </Select>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div className="flex flex-col">
-                    <Typography variant="small" className="mb-2 font-medium">
-                      HomeTown Country
-                    </Typography>
-                    <Input
-                      type="text"
-                      name="hometownCountry"
-                      value={searchParams.hometownCountry}
-                      onChange={handleInputChange}
-                      placeholder="HomeTown Country"
-                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
-                      labelProps={{
-                        className: "before:content-none after:content-none",
-                      }} />
-                  </div>
-                  <div className="flex flex-col">
-                    <Typography variant="small" className="mb-2 font-medium">
-                      HomeTown City
-                    </Typography>
-                    <Input
-                      type="text"
-                      name="hometownCity"
-                      value={searchParams.hometownCity}
-                      onChange={handleInputChange}
-                      placeholder="HomeTown City"
-                      className="!border-t-blue-gray-200 focus:!border-t-gray-900"
-                      labelProps={{
-                        className: "before:content-none after:content-none",
-                      }} />
-                  </div>
+                <div className="flex flex-col">
+                  <Typography variant="small" className="mb-2 font-medium">
+                    Workplace
+                  </Typography>
+                  <Input
+                    type="text"
+                    name="workplace"
+                    value={searchParams.workplace}
+                    onChange={handleInputChange}
+                    placeholder="Workplace"
+                    className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                    labelProps={{
+                      className: "before:content-none after:content-none",
+                    }}
+                  />
                 </div>
-                
+                <div className="flex flex-col">
+                  <Typography variant="small" className="mb-2 font-medium">
+                    Email
+                  </Typography>
+                  <Input
+                    type="email"
+                    name="email"
+                    value={searchParams.email}
+                    onChange={handleInputChange}
+                    placeholder="Email"
+                    className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                    labelProps={{
+                      className: "before:content-none after:content-none",
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <Typography variant="small" className="mb-2 font-medium">
+                    Phone Number
+                  </Typography>
+                  <Input
+                    type="text"
+                    name="phoneNumber"
+                    value={searchParams.phoneNumber}
+                    onChange={handleInputChange}
+                    placeholder="Phone Number"
+                    className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                    labelProps={{
+                      className: "before:content-none after:content-none",
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <Typography variant="small" className="mb-2 font-medium">
+                    HomeTown Country
+                  </Typography>
+                  <Input
+                    type="text"
+                    name="hometownCountry"
+                    value={searchParams.hometownCountry}
+                    onChange={handleInputChange}
+                    placeholder="HomeTown Country"
+                    className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                    labelProps={{
+                      className: "before:content-none after:content-none",
+                    }}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <Typography variant="small" className="mb-2 font-medium">
+                    HomeTown City
+                  </Typography>
+                  <Input
+                    type="text"
+                    name="hometownCity"
+                    value={searchParams.hometownCity}
+                    onChange={handleInputChange}
+                    placeholder="HomeTown City"
+                    className="!border-t-blue-gray-200 focus:!border-t-gray-900"
+                    labelProps={{
+                      className: "before:content-none after:content-none",
+                    }}
+                  />
+                </div>
                 <div className="flex flex-col mt-4">
                   <Typography variant="small" className="mb-2 font-medium">
                     Results per page
@@ -800,7 +1060,7 @@ export function Search() {
                     <Option value="100">100</Option>
                   </Select>
                 </div>
-              </>
+              </div>
             )}
 
             <div className="flex flex-wrap gap-4 mt-6">
@@ -841,7 +1101,7 @@ export function Search() {
             <table className="w-full min-w-[640px] table-auto">
               <thead>
                 <tr>
-                  {["Users", "Location", "Phone Number", "Email", "Workplace", "Relationship Status", "Home Location"].map((el) => (
+                  {["Users", "Location","Department","Phone Number", "Email", "Workplace", "Relationship Status", "Home Location"].map((el) => (
                     <th
                       key={el}
                       className="border-b border-blue-gray-50 py-3 px-5 text-left"
